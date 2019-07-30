@@ -31,7 +31,7 @@ save api/secret keys into keys.json
 use ```-h``` to get help.
 
 ```shell
-./binance-cil -h
+./binance-cli -h
 
 NAME:
    binance-cli - Binance CLI
