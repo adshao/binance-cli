@@ -11,7 +11,7 @@ import (
 
 func newContext() (context.Context, context.CancelFunc) {
 	ctx := context.Background()
-	return context.WithTimeout(ctx, 10*time.Second)
+	return context.WithTimeout(ctx, 30*time.Second)
 }
 
 // Account define binance account
@@ -21,30 +21,19 @@ type Account struct {
 	Balances []binance.Balance `json:"balances"`
 }
 
-// UpdateBalances update account balances
-func (account *Account) UpdateBalances(assets []string) error {
+// ListBalances update account balances
+func (account *Account) ListBalances() (map[string]binance.Balance, error) {
 	ctx, cancel := newContext()
 	defer cancel()
 	res, err := account.NewGetAccountService().Do(ctx)
 	if err != nil {
-		return errors.Trace(err)
+		return nil, errors.Trace(err)
 	}
-	if len(assets) > 0 {
-		var insertedKeys []string
-		var balances []binance.Balance
-		for _, asset := range assets {
-			for _, balance := range res.Balances {
-				if asset == balance.Asset && !StrContains(insertedKeys, asset) {
-					balances = append(balances, balance)
-					insertedKeys = append(insertedKeys, asset)
-				}
-			}
-		}
-		account.Balances = balances
-	} else {
-		account.Balances = res.Balances
+	balances := make(map[string]binance.Balance)
+	for _, balance := range res.Balances {
+		balances[balance.Asset] = balance
 	}
-	return nil
+	return balances, nil
 }
 
 // ListOpenOrders list open orders
@@ -101,4 +90,35 @@ func (account *Account) CreateOrder(symbol, side, quantity, price string) (*bina
 		return nil, errors.Trace(err)
 	}
 	return res, nil
+}
+
+// TestCreateOrder create order for test
+func (account *Account) TestCreateOrder(symbol, side, quantity, price string) error {
+	ctx, cancel := newContext()
+	defer cancel()
+	side = strings.ToUpper(side)
+	sideType := binance.SideType(side)
+	err := account.NewCreateOrderService().Symbol(symbol).Side(sideType).
+		Quantity(quantity).Price(price).Type(binance.OrderTypeLimit).
+		TimeInForce(binance.TimeInForceTypeGTC).Test(ctx)
+	if err != nil {
+		return errors.Trace(err)
+	}
+	return nil
+}
+
+// ListSymbols list symbols
+func (account *Account) ListSymbols() (map[string]binance.Symbol, error) {
+	ctx, cancel := newContext()
+	defer cancel()
+	info, err := account.NewExchangeInfoService().Do(ctx)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	ret := make(map[string]binance.Symbol)
+	symbols := info.Symbols
+	for _, symbol := range symbols {
+		ret[symbol.Symbol] = symbol
+	}
+	return ret, nil
 }
