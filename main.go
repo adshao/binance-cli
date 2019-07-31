@@ -76,6 +76,11 @@ func findAccountsImpl(name string) map[string]*Account {
 
 func runOnce(action func(*Account) (interface{}, error),
 	postAction ...func(map[string]interface{}) (interface{}, error)) error {
+
+	var origFindAccounts = findAccounts
+	defer func() {
+		findAccounts = origFindAccounts
+	}()
 	findAccounts = func(name string) map[string]*Account {
 		initAccounts()
 		for k, v := range accounts {
@@ -144,14 +149,14 @@ func main() {
 	}
 	app.Commands = []cli.Command{
 		{
-			Name:  "list-balances",
+			Name:  "list-balance",
 			Usage: "list account balances",
 			Flags: []cli.Flag{
 				cli.StringSliceFlag{
 					Name:   "assets",
 					EnvVar: "BINANCE_ASSETS",
 					Usage:  "list balances with asset BTC, BNB ...",
-					Value:  &cli.StringSlice{"BTC", "BNB", "WINK", "USDT"},
+					Value:  &cli.StringSlice{"BTC", "BNB", "WIN", "USDT"},
 				},
 				cli.BoolTFlag{
 					Name:  "total",
@@ -163,7 +168,7 @@ func main() {
 			},
 		},
 		{
-			Name:  "list-prices",
+			Name:  "list-price",
 			Usage: "list latest price for a symbol or symbols",
 			Flags: []cli.Flag{
 				cli.StringFlag{
@@ -176,7 +181,7 @@ func main() {
 			},
 		},
 		{
-			Name:  "list-orders",
+			Name:  "list-order",
 			Usage: "list open orders",
 			Flags: []cli.Flag{
 				cli.StringFlag{
@@ -202,30 +207,53 @@ func main() {
 				},
 				cli.StringFlag{
 					Name:  "quantity",
-					Usage: "quantity of symbol",
+					Usage: "quantity of symbol: 20.120 or 50%",
 				},
 				cli.StringFlag{
 					Name:  "price",
 					Usage: "price of symbol",
 				},
+				cli.BoolFlag{
+					Name:  "test",
+					Usage: "for test only, will not actually create order",
+				},
 			},
 			Action: func(c *cli.Context) error {
 				return createOrder(
 					c.String("symbol"), c.String("side"),
-					c.String("quantity"), c.String("price"))
+					c.String("quantity"), c.String("price"),
+					c.Bool("test"),
+				)
 			},
 		},
 		{
-			Name:  "cancel-orders",
+			Name:  "cancel-order",
 			Usage: "cancel open orders",
 			Flags: []cli.Flag{
 				cli.StringFlag{
 					Name:  "symbol",
 					Usage: "cancel open orders with symbol",
 				},
+				cli.Int64Flag{
+					Name:  "order-id, id",
+					Usage: "cancel open order with order id",
+				},
 			},
 			Action: func(c *cli.Context) error {
-				return cancelOrders(c.String("symbol"))
+				return cancelOrders(c.String("symbol"), c.Int64("id"))
+			},
+		},
+		{
+			Name:  "list-symbol",
+			Usage: "list symbols info",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "symbol",
+					Usage: "symbol name",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				return listSymbols(c.String("symbol"))
 			},
 		},
 	}

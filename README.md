@@ -22,7 +22,8 @@ save api/secret keys into keys.json
         "api_key": "xxxx",
         "secret_key": "xxx"
     },
-    ...
+    {
+    }
 ]
 ```
 
@@ -43,16 +44,18 @@ VERSION:
    0.0.0
 
 COMMANDS:
-     list-balances  list account balances
-     list-prices    list latest price for a symbol or symbols
-     list-orders    list open orders
-     create-order   create order
-     cancel-orders  cancel open orders
-     help, h        Shows a list of commands or help for one command
+     list-balance  list account balances
+     list-price    list latest price for a symbol or symbols
+     list-order    list open orders
+     create-order  create order
+     cancel-order  cancel open orders
+     list-symbol   list symbols info
+     help, h       Shows a list of commands or help for one command
 
 GLOBAL OPTIONS:
    --name value     account name
    --keyfile value  file path of api keys
+   --debug, -d      show debug info
    --help, -h       show help
    --version, -v    print the version
 ```
@@ -60,7 +63,7 @@ GLOBAL OPTIONS:
 #### Check Latest Price
 
 ```shell
-./binance-cli list-prices --symbol BNBBTC
+./binance-cli list-price --symbol BNBBTC
 
 {
     "test1": [
@@ -75,7 +78,7 @@ GLOBAL OPTIONS:
 #### List Balances
 
 ```shell
-./binance-cli list-balances
+./binance-cli list-balance
 
 [
     {

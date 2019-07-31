@@ -27,7 +27,7 @@
 
 [[constraint]]
   name = "github.com/adshao/go-binance"
-  version = "1.3.0"
+  version = "1.3.1"
 
 [[constraint]]
   branch = "master"
