@@ -64,7 +64,11 @@ GLOBAL OPTIONS:
 
 ```shell
 ./binance-cli list-price --symbol BNBBTC
+```
+<details>
+<summary>output</summary>
 
+```shell
 {
     "test1": [
         {
@@ -74,12 +78,18 @@ GLOBAL OPTIONS:
     ]
 }
 ```
+</details>
 
 #### List Balances
 
 ```shell
 ./binance-cli list-balance
+```
 
+<details>
+<summary>output</summary>
+
+```shell
 [
     {
         "test1": [
@@ -124,4 +134,45 @@ GLOBAL OPTIONS:
         "BTC": 0.0088287
     }
 ]
+```
+</details>
+
+#### Create Order
+
+Currently only support LIMIT order.
+
+##### Create Sell Order
+
+```shell
+./binance-cli create-order --symbol BNBUSDT --side SELL --quantity 10 --price 50
+```
+
+##### Create Sell Order With Percent Quantity
+
+This will sell 50% of your BNB to buy USDT at price 50 USDT.
+
+```shell
+./binance-cli create-order --symbol BNBUSDT --side SELL --quantity 50% --price 50
+```
+
+##### Create Buy Order
+
+```shell
+./binance-cli create-order --symbol BNBUSDT --side BUY --quantity 10 --price 20
+```
+
+##### Create Buy Order With Percent Quantity
+
+This will sell 50% of your USDT to buy BNB at price 20 USDT.
+
+```shell
+./binance-cli create-order --symbol BNBUSDT --side BUY --quantity 100% --price 20
+```
+
+#### Cancel Order
+
+Cancel all orders with BNBUDT in all accounts.
+
+```shell
+./binance-cli cancel-orders --symbol BNBUSDT
 ```
