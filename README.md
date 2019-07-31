@@ -163,7 +163,7 @@ This will sell 50% of your BNB to buy USDT at price 50 USDT.
 
 ##### Create Buy Order With Percent Quantity
 
-This will sell 50% of your USDT to buy BNB at price 20 USDT.
+This will sell 100% of your USDT to buy BNB at price 20 USDT.
 
 ```shell
 ./binance-cli create-order --symbol BNBUSDT --side BUY --quantity 100% --price 20
