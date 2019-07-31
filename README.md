@@ -171,7 +171,7 @@ This will sell 100% of your USDT to buy BNB at price 20 USDT.
 
 #### Cancel Order
 
-Cancel all orders with BNBUDT in all accounts.
+Cancel all orders with BNBUSDT in all accounts.
 
 ```shell
 ./binance-cli cancel-orders --symbol BNBUSDT
