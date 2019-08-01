@@ -51,6 +51,24 @@ func (account *Account) ListOpenOrders(symbol string) ([]*binance.Order, error) 
 	return orders, nil
 }
 
+// ListAllOrders list all account orders
+func (account *Account) ListAllOrders(symbol string, limit int) ([]*binance.Order, error) {
+	ctx, cancel := newContext()
+	defer cancel()
+	service := account.NewListOrdersService()
+	if symbol != "" {
+		service = service.Symbol(symbol)
+	}
+	if limit != 0 {
+		service = service.Limit(limit)
+	}
+	orders, err := service.Do(ctx)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	return orders, nil
+}
+
 // ListPrices list latest prices for a symbol or symbols
 func (account *Account) ListPrices(symbol string) ([]*binance.SymbolPrice, error) {
 	ctx, cancel := newContext()
@@ -121,4 +139,22 @@ func (account *Account) ListSymbols() (map[string]binance.Symbol, error) {
 		ret[symbol.Symbol] = symbol
 	}
 	return ret, nil
+}
+
+// ListTrades list trades
+func (account *Account) ListTrades(symbol string, limit int) ([]*binance.TradeV3, error) {
+	ctx, cancel := newContext()
+	defer cancel()
+	service := account.NewListTradesService()
+	if symbol != "" {
+		service = service.Symbol(symbol)
+	}
+	if limit != 0 {
+		service = service.Limit(limit)
+	}
+	trades, err := service.Do(ctx)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	return trades, nil
 }

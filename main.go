@@ -172,7 +172,7 @@ func main() {
 			Usage: "list latest price for a symbol or symbols",
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:  "symbol",
+					Name:  "symbol, s",
 					Usage: "filter with symbol",
 				},
 			},
@@ -185,12 +185,20 @@ func main() {
 			Usage: "list open orders",
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:  "symbol",
+					Name:  "symbol, s",
 					Usage: "list orders with symbol",
+				},
+				cli.BoolFlag{
+					Name:  "all",
+					Usage: "List all account orders",
+				},
+				cli.IntFlag{
+					Name:  "limit, l",
+					Usage: "limit num of trades",
 				},
 			},
 			Action: func(c *cli.Context) error {
-				return listOpenOrders(c.String("symbol"))
+				return listOrders(c.String("symbol"), c.Bool("all"), c.Int("limit"))
 			},
 		},
 		{
@@ -198,7 +206,7 @@ func main() {
 			Usage: "create order",
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:  "symbol",
+					Name:  "symbol, s",
 					Usage: "symbol name: BNBBTC",
 				},
 				cli.StringFlag{
@@ -231,7 +239,7 @@ func main() {
 			Usage: "cancel open orders",
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:  "symbol",
+					Name:  "symbol, s",
 					Usage: "cancel open orders with symbol",
 				},
 				cli.Int64Flag{
@@ -248,12 +256,29 @@ func main() {
 			Usage: "list symbols info",
 			Flags: []cli.Flag{
 				cli.StringFlag{
-					Name:  "symbol",
+					Name:  "symbol, s",
 					Usage: "symbol name",
 				},
 			},
 			Action: func(c *cli.Context) error {
 				return listSymbols(c.String("symbol"))
+			},
+		},
+		{
+			Name:  "list-trade",
+			Usage: "list trades",
+			Flags: []cli.Flag{
+				cli.StringFlag{
+					Name:  "symbol, s",
+					Usage: "symbol name",
+				},
+				cli.IntFlag{
+					Name:  "limit, l",
+					Usage: "limit num of trades",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				return listTrades(c.String("symbol"), c.Int("limit"))
 			},
 		},
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"strings"
 
 	"github.com/adshao/go-binance"
@@ -51,9 +52,18 @@ func listBalances(assets []string, total bool) error {
 	})
 }
 
-func listOpenOrders(symbol string) error {
+func listOrders(symbol string, all bool, limit int) error {
 	return accountsDo(func(account *Account) (interface{}, error) {
-		orders, err := account.ListOpenOrders(symbol)
+		var orders []*binance.Order
+		var err error
+		if all {
+			if symbol == "" {
+				log.Fatal("symbol is required")
+			}
+			orders, err = account.ListAllOrders(symbol, limit)
+		} else {
+			orders, err = account.ListOpenOrders(symbol)
+		}
 		if err != nil {
 			return nil, errors.Trace(err)
 		}
@@ -187,5 +197,16 @@ func listSymbols(symbol string) error {
 				return s, nil
 			}
 			return symbols, nil
+		})
+}
+
+func listTrades(symbol string, limit int) error {
+	return accountsDo(
+		func(account *Account) (interface{}, error) {
+			trades, err := account.ListTrades(symbol, limit)
+			if err != nil {
+				return nil, errors.Trace(err)
+			}
+			return trades, nil
 		})
 }
