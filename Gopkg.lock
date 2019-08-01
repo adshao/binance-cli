@@ -38,6 +38,12 @@
   version = "v1.0.0"
 
 [[projects]]
+  name = "github.com/shopspring/decimal"
+  packages = ["."]
+  revision = "cd690d0c9e2447b1ef2a129a6b7b49077da89b8e"
+  version = "1.1.0"
+
+[[projects]]
   name = "github.com/stretchr/testify"
   packages = ["assert"]
   revision = "ffdc059bfe9ce6a4e144ba849dbedead332c6053"
@@ -52,6 +58,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "8b0f4dab3fe29e656bc45f22b1145dd71e7a477e2dd95a2bb55fa613aa3640f8"
+  inputs-digest = "664ae704474b4e0581ab6faa37b33649e6e437245e503634d67307a887255300"
   solver-name = "gps-cdcl"
   solver-version = 1
