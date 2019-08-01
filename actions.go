@@ -1,11 +1,11 @@
 package main
 
 import (
-	"strconv"
 	"strings"
 
 	"github.com/adshao/go-binance"
 	"github.com/juju/errors"
+	"github.com/shopspring/decimal"
 )
 
 var symbols map[string]binance.Symbol
@@ -35,16 +35,16 @@ func listBalances(assets []string, total bool) error {
 		if !total {
 			return results, nil
 		}
-		totalResults := make(map[string]float64)
+		totalResults := make(map[string]decimal.Decimal)
 		for _, res := range results {
 			assets, ok := res.([]binance.Balance)
 			if !ok {
 				continue
 			}
 			for _, asset := range assets {
-				free, _ := strconv.ParseFloat(asset.Free, 64)
-				locked, _ := strconv.ParseFloat(asset.Locked, 64)
-				totalResults[asset.Asset] += free + locked
+				free := decimal.RequireFromString(asset.Free)
+				locked := decimal.RequireFromString(asset.Locked)
+				totalResults[asset.Asset] = totalResults[asset.Asset].Add(free.Add(locked))
 			}
 		}
 		return []interface{}{results, totalResults}, nil
@@ -112,6 +112,7 @@ func (account *Account) loadSymbols() error {
 func createOrder(symbol, side, quantity, price string, isTest bool) error {
 	return accountsDo(
 		func(account *Account) (interface{}, error) {
+			newQuantity := quantity
 			if strings.HasSuffix(quantity, "%") {
 				err := account.loadSymbols()
 				if err != nil {
@@ -125,43 +126,45 @@ func createOrder(symbol, side, quantity, price string, isTest bool) error {
 				if lotSize == nil {
 					return nil, errors.Trace(err)
 				}
-				minQty := StrToAmount(lotSize.MinQuantity)
-				stepSize := StrToAmount(lotSize.StepSize)
-				// precision := info.BaseAssetPrecision
+				minQty := decimal.RequireFromString(lotSize.MinQuantity)
+				stepSize := decimal.RequireFromString(lotSize.StepSize)
+				precision := info.BaseAssetPrecision
 
 				balances, err := account.ListBalances()
 				if err != nil {
 					return nil, errors.Trace(err)
 				}
-				var amount float64
+				var amount decimal.Decimal
 				if side == "SELL" {
 					balance, ok := balances[info.BaseAsset]
 					if !ok {
 						return nil, errors.Errorf("balance %s not found", symbol)
 					}
-					amount = StrToAmount(balance.Free)
-					amount *= StrToPct(quantity)
+					amount = decimal.RequireFromString(balance.Free)
+					percent := decimal.NewFromFloat(StrToPct(quantity))
+					amount = amount.Mul(percent)
 				} else if side == "BUY" {
 					balance, ok := balances[info.QuoteAsset]
 					if !ok {
 						return nil, errors.Errorf("balance %s not found", symbol)
 					}
-					amount = StrToAmount(balance.Free)
-					amount *= StrToPct(quantity)
-					amount /= StrToAmount(price)
+					amount = decimal.RequireFromString(balance.Free)
+					percent := decimal.NewFromFloat(StrToPct(quantity))
+					amount = amount.Mul(percent)
+					p := decimal.RequireFromString(price)
+					amount = amount.DivRound(p, int32(precision))
 				}
-				amount = AmountToLotSize(amount, minQty, stepSize)
-				quantity = AmountToStr(amount)
+				newQuantity = AmountToLotSize(amount.String(), minQty.String(), stepSize.String(), precision)
 			}
 
 			if isTest {
-				err := account.TestCreateOrder(symbol, side, quantity, price)
+				err := account.TestCreateOrder(symbol, side, newQuantity, price)
 				if err != nil {
 					return nil, errors.Trace(err)
 				}
 				return "ok", nil
 			}
-			res, err := account.CreateOrder(symbol, side, quantity, price)
+			res, err := account.CreateOrder(symbol, side, newQuantity, price)
 			if err != nil {
 				return nil, errors.Trace(err)
 			}
