@@ -1,17 +1,57 @@
 package main
 
 import (
+	"encoding/json"
+	"io/ioutil"
 	"log"
 	"strings"
 
 	"github.com/adshao/go-binance"
 	"github.com/juju/errors"
 	"github.com/shopspring/decimal"
+	"gopkg.in/urfave/cli.v1"
 )
+
+// AccountBalance define account balance
+type AccountBalance struct {
+	Name     string            `json:"name"`
+	Balances []binance.Balance `json:"balances"`
+}
+
+func loadAccountBalances(filePath string) (map[string]map[string]binance.Balance, error) {
+	keyBytes, err := ioutil.ReadFile(filePath)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	var infos []AccountBalance
+	err = json.Unmarshal(keyBytes, &infos)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	accountMap := make(map[string]map[string]binance.Balance)
+	for _, info := range infos {
+		accountMap[info.Name] = make(map[string]binance.Balance)
+		for _, balance := range info.Balances {
+			accountMap[info.Name][balance.Asset] = balance
+		}
+	}
+	return accountMap, nil
+}
 
 var symbols map[string]binance.Symbol
 
-func listBalances(assets []string, total bool) error {
+func listBalances(c *cli.Context) error {
+	var accountBalances map[string]map[string]binance.Balance
+	var err error
+	if c.GlobalIsSet("account-file") {
+		accountBalances, err = loadAccountBalances(c.GlobalString("account-file"))
+		if err != nil {
+			return errors.Trace(err)
+		}
+	}
+
+	assets := c.StringSlice("assets")
+	total := c.Bool("total")
 	return accountsDo(func(account *Account) (interface{}, error) {
 		balances, err := account.ListBalances()
 		if err != nil {
@@ -31,28 +71,39 @@ func listBalances(assets []string, total bool) error {
 				l = append(l, b)
 			}
 		}
-		return l, nil
+		return &AccountBalance{account.Name, l}, nil
 	}, func(results map[string]interface{}) (interface{}, error) {
 		if !total {
 			return results, nil
 		}
 		totalResults := make(map[string]decimal.Decimal)
 		for _, res := range results {
-			assets, ok := res.([]binance.Balance)
+			accountBalance, ok := res.(*AccountBalance)
 			if !ok {
 				continue
 			}
-			for _, asset := range assets {
-				free := decimal.RequireFromString(asset.Free)
-				locked := decimal.RequireFromString(asset.Locked)
-				totalResults[asset.Asset] = totalResults[asset.Asset].Add(free.Add(locked))
+			for _, balance := range accountBalance.Balances {
+				free := decimal.RequireFromString(balance.Free)
+				locked := decimal.RequireFromString(balance.Locked)
+				total := totalResults[balance.Asset].Add(free.Add(locked))
+				if balanceMap, ok := accountBalances[accountBalance.Name]; ok {
+					if b, ok := balanceMap[balance.Asset]; ok {
+						if b.Locked != "" {
+							total = total.Sub(decimal.RequireFromString(b.Locked))
+						}
+					}
+				}
+				totalResults[balance.Asset] = total
 			}
 		}
 		return []interface{}{results, totalResults}, nil
 	})
 }
 
-func listOrders(symbol string, all bool, limit int) error {
+func listOrders(c *cli.Context) error {
+	symbol := c.String("symbol")
+	all := c.Bool("all")
+	limit := c.Int("limit")
 	return accountsDo(func(account *Account) (interface{}, error) {
 		var orders []*binance.Order
 		var err error
@@ -71,7 +122,8 @@ func listOrders(symbol string, all bool, limit int) error {
 	})
 }
 
-func listPrices(symbol string) error {
+func listPrices(c *cli.Context) error {
+	symbol := c.String("symbol")
 	return runOnce(func(account *Account) (interface{}, error) {
 		prices, err := account.ListPrices(symbol)
 		if err != nil {
@@ -81,7 +133,9 @@ func listPrices(symbol string) error {
 	})
 }
 
-func cancelOrders(symbol string, orderID int64) error {
+func cancelOrders(c *cli.Context) error {
+	symbol := c.String("symbol")
+	orderID := c.Int64("id")
 	return accountsDo(
 		func(account *Account) (interface{}, error) {
 			var canceledOrders []int64
@@ -119,7 +173,21 @@ func (account *Account) loadSymbols() error {
 	return nil
 }
 
-func createOrder(symbol, side, quantity, price string, isTest bool) error {
+func createOrder(c *cli.Context) error {
+	var accountBalances map[string]map[string]binance.Balance
+	var err error
+	if c.GlobalIsSet("account-file") {
+		accountBalances, err = loadAccountBalances(c.GlobalString("account-file"))
+		if err != nil {
+			return errors.Trace(err)
+		}
+	}
+
+	symbol := c.String("symbol")
+	side := c.String("side")
+	quantity := c.String("quantity")
+	price := c.String("price")
+	isTest := c.Bool("test")
 	return accountsDo(
 		func(account *Account) (interface{}, error) {
 			newQuantity := quantity
@@ -151,6 +219,15 @@ func createOrder(symbol, side, quantity, price string, isTest bool) error {
 						return nil, errors.Errorf("balance %s not found", symbol)
 					}
 					amount = decimal.RequireFromString(balance.Free)
+
+					if balanceMap, ok := accountBalances[account.Name]; ok {
+						if b, ok := balanceMap[info.BaseAsset]; ok {
+							if b.Locked != "" {
+								amount = amount.Sub(decimal.RequireFromString(b.Locked))
+							}
+						}
+					}
+
 					percent := decimal.NewFromFloat(StrToPct(quantity))
 					amount = amount.Mul(percent)
 				} else if side == "BUY" {
@@ -159,6 +236,15 @@ func createOrder(symbol, side, quantity, price string, isTest bool) error {
 						return nil, errors.Errorf("balance %s not found", symbol)
 					}
 					amount = decimal.RequireFromString(balance.Free)
+
+					if balanceMap, ok := accountBalances[account.Name]; ok {
+						if b, ok := balanceMap[info.QuoteAsset]; ok {
+							if b.Locked != "" {
+								amount = amount.Sub(decimal.RequireFromString(b.Locked))
+							}
+						}
+					}
+
 					percent := decimal.NewFromFloat(StrToPct(quantity))
 					amount = amount.Mul(percent)
 					p := decimal.RequireFromString(price)
@@ -182,7 +268,8 @@ func createOrder(symbol, side, quantity, price string, isTest bool) error {
 		})
 }
 
-func listSymbols(symbol string) error {
+func listSymbols(c *cli.Context) error {
+	symbol := c.String("symbol")
 	return runOnce(
 		func(account *Account) (interface{}, error) {
 			symbols, err := account.ListSymbols()
@@ -200,7 +287,9 @@ func listSymbols(symbol string) error {
 		})
 }
 
-func listTrades(symbol string, limit int) error {
+func listTrades(c *cli.Context) error {
+	symbol := c.String("symbol")
+	limit := c.Int("limit")
 	return accountsDo(
 		func(account *Account) (interface{}, error) {
 			trades, err := account.ListTrades(symbol, limit)
