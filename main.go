@@ -146,6 +146,10 @@ func main() {
 			Usage:       "show debug info",
 			Destination: &debug,
 		},
+		cli.StringFlag{
+			Name:  "account-file, af",
+			Usage: "account file",
+		},
 	}
 	app.Commands = []cli.Command{
 		{
@@ -156,7 +160,7 @@ func main() {
 					Name:   "assets",
 					EnvVar: "BINANCE_ASSETS",
 					Usage:  "list balances with asset BTC, BNB ...",
-					Value:  &cli.StringSlice{"BTC", "BNB", "WIN", "USDT"},
+					Value:  &cli.StringSlice{"BTC", "BNB", "USDT"},
 				},
 				cli.BoolTFlag{
 					Name:  "total",
@@ -164,7 +168,7 @@ func main() {
 				},
 			},
 			Action: func(c *cli.Context) error {
-				return listBalances(c.StringSlice("assets"), c.Bool("total"))
+				return listBalances(c)
 			},
 		},
 		{
@@ -177,7 +181,7 @@ func main() {
 				},
 			},
 			Action: func(c *cli.Context) error {
-				return listPrices(c.String("symbol"))
+				return listPrices(c)
 			},
 		},
 		{
@@ -198,7 +202,7 @@ func main() {
 				},
 			},
 			Action: func(c *cli.Context) error {
-				return listOrders(c.String("symbol"), c.Bool("all"), c.Int("limit"))
+				return listOrders(c)
 			},
 		},
 		{
@@ -227,11 +231,7 @@ func main() {
 				},
 			},
 			Action: func(c *cli.Context) error {
-				return createOrder(
-					c.String("symbol"), c.String("side"),
-					c.String("quantity"), c.String("price"),
-					c.Bool("test"),
-				)
+				return createOrder(c)
 			},
 		},
 		{
@@ -248,7 +248,7 @@ func main() {
 				},
 			},
 			Action: func(c *cli.Context) error {
-				return cancelOrders(c.String("symbol"), c.Int64("id"))
+				return cancelOrders(c)
 			},
 		},
 		{
@@ -261,7 +261,7 @@ func main() {
 				},
 			},
 			Action: func(c *cli.Context) error {
-				return listSymbols(c.String("symbol"))
+				return listSymbols(c)
 			},
 		},
 		{
@@ -278,7 +278,7 @@ func main() {
 				},
 			},
 			Action: func(c *cli.Context) error {
-				return listTrades(c.String("symbol"), c.Int("limit"))
+				return listTrades(c)
 			},
 		},
 	}
