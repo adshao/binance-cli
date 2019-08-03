@@ -147,8 +147,8 @@ func main() {
 			Destination: &debug,
 		},
 		cli.StringFlag{
-			Name:  "account-file, af",
-			Usage: "account file",
+			Name:  "configfile, f",
+			Usage: "config file",
 		},
 	}
 	app.Commands = []cli.Command{

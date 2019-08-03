@@ -1,8 +1,6 @@
 package main
 
 import (
-	"encoding/json"
-	"io/ioutil"
 	"log"
 	"strings"
 
@@ -12,46 +10,17 @@ import (
 	"gopkg.in/urfave/cli.v1"
 )
 
-// AccountBalance define account balance
-type AccountBalance struct {
-	Name     string            `json:"name"`
-	Balances []binance.Balance `json:"balances"`
-}
-
-func loadAccountBalances(filePath string) (map[string]map[string]binance.Balance, error) {
-	keyBytes, err := ioutil.ReadFile(filePath)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-	var infos []AccountBalance
-	err = json.Unmarshal(keyBytes, &infos)
-	if err != nil {
-		return nil, errors.Trace(err)
-	}
-	accountMap := make(map[string]map[string]binance.Balance)
-	for _, info := range infos {
-		accountMap[info.Name] = make(map[string]binance.Balance)
-		for _, balance := range info.Balances {
-			accountMap[info.Name][balance.Asset] = balance
-		}
-	}
-	return accountMap, nil
-}
-
 var symbols map[string]binance.Symbol
 
 func listBalances(c *cli.Context) error {
-	var accountBalances map[string]map[string]binance.Balance
-	var err error
-	if c.GlobalIsSet("account-file") {
-		accountBalances, err = loadAccountBalances(c.GlobalString("account-file"))
-		if err != nil {
-			return errors.Trace(err)
-		}
+	config, err := loadConfig(c)
+	if err != nil {
+		return errors.Trace(err)
 	}
-
+	accountBalances := config.AccountBalances()
 	assets := c.StringSlice("assets")
 	total := c.Bool("total")
+
 	return accountsDo(func(account *Account) (interface{}, error) {
 		balances, err := account.ListBalances()
 		if err != nil {
@@ -71,14 +40,14 @@ func listBalances(c *cli.Context) error {
 				l = append(l, b)
 			}
 		}
-		return &AccountBalance{account.Name, l}, nil
+		return &AccountConfig{account.Name, l}, nil
 	}, func(results map[string]interface{}) (interface{}, error) {
 		if !total {
 			return results, nil
 		}
 		totalResults := make(map[string]decimal.Decimal)
 		for _, res := range results {
-			accountBalance, ok := res.(*AccountBalance)
+			accountBalance, ok := res.(*AccountConfig)
 			if !ok {
 				continue
 			}
@@ -174,14 +143,11 @@ func (account *Account) loadSymbols() error {
 }
 
 func createOrder(c *cli.Context) error {
-	var accountBalances map[string]map[string]binance.Balance
-	var err error
-	if c.GlobalIsSet("account-file") {
-		accountBalances, err = loadAccountBalances(c.GlobalString("account-file"))
-		if err != nil {
-			return errors.Trace(err)
-		}
+	config, err := loadConfig(c)
+	if err != nil {
+		return errors.Trace(err)
 	}
+	accountBalances := config.AccountBalances()
 
 	symbol := c.String("symbol")
 	side := c.String("side")
