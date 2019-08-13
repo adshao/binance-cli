@@ -4,8 +4,8 @@
 [[projects]]
   name = "github.com/adshao/go-binance"
   packages = ["."]
-  revision = "0ec96107e98dd234be6b5f03991aa74dec95f313"
-  version = "1.3.1"
+  revision = "b280588430f92b97b60a7dbab1d79f091232915c"
+  version = "2.0.0"
 
 [[projects]]
   name = "github.com/bitly/go-simplejson"
@@ -58,6 +58,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "664ae704474b4e0581ab6faa37b33649e6e437245e503634d67307a887255300"
+  inputs-digest = "4011bda37cad681dacbfcc06bede27bfc32fb888a8b607538a187c7a97283a92"
   solver-name = "gps-cdcl"
   solver-version = 1

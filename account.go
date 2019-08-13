@@ -158,3 +158,15 @@ func (account *Account) ListTrades(symbol string, limit int) ([]*binance.TradeV3
 	}
 	return trades, nil
 }
+
+// GetMarginAccount get margin account
+func (account *Account) GetMarginAccount() (*binance.MarginAccount, error) {
+	ctx, cancel := newContext()
+	defer cancel()
+	service := account.NewGetMarginAccountService()
+	marginAccount, err := service.Do(ctx)
+	if err != nil {
+		return nil, errors.Trace(err)
+	}
+	return marginAccount, nil
+}

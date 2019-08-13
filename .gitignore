@@ -1,3 +1,2 @@
-keys.json
-config.json
+*.json
 binance-cli
