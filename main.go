@@ -281,6 +281,28 @@ func main() {
 				return listTrades(c)
 			},
 		},
+		{
+			Name:  "list-margin-balance",
+			Usage: "list margin account balances",
+			Flags: []cli.Flag{
+				cli.StringSliceFlag{
+					Name:   "assets",
+					EnvVar: "BINANCE_ASSETS",
+					Usage:  "list balances with asset BTC, BNB ...",
+				},
+				cli.BoolTFlag{
+					Name:  "total",
+					Usage: "show total balance",
+				},
+				cli.BoolFlag{
+					Name:  "borrowed",
+					Usage: "only show borrowed asset",
+				},
+			},
+			Action: func(c *cli.Context) error {
+				return listMarginBalances(c)
+			},
+		},
 	}
 	err := app.Run(os.Args)
 	if err != nil {
