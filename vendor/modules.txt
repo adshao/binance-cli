@@ -1,0 +1,36 @@
+# github.com/adshao/go-binance v0.0.0-20201227031010-3a1b2eb11cbe
+## explicit
+github.com/adshao/go-binance
+github.com/adshao/go-binance/common
+github.com/adshao/go-binance/delivery
+github.com/adshao/go-binance/futures
+# github.com/adshao/go-binance/v2 v2.2.0
+## explicit
+github.com/adshao/go-binance/v2
+github.com/adshao/go-binance/v2/common
+github.com/adshao/go-binance/v2/delivery
+github.com/adshao/go-binance/v2/futures
+# github.com/bitly/go-simplejson v0.5.0
+github.com/bitly/go-simplejson
+# github.com/davecgh/go-spew v1.1.0
+github.com/davecgh/go-spew/spew
+# github.com/gorilla/websocket v1.2.0
+github.com/gorilla/websocket
+# github.com/juju/errors v0.0.0-20200330140219-3fe23663418f
+## explicit
+github.com/juju/errors
+# github.com/juju/testing v0.0.0-20201216035041-2be42bba85f3
+## explicit
+# github.com/pmezard/go-difflib v1.0.0
+github.com/pmezard/go-difflib/difflib
+# github.com/shopspring/decimal v1.2.0
+## explicit
+github.com/shopspring/decimal
+# github.com/stretchr/testify v1.6.1
+## explicit
+github.com/stretchr/testify/assert
+# gopkg.in/urfave/cli.v1 v1.20.0
+## explicit
+gopkg.in/urfave/cli.v1
+# gopkg.in/yaml.v3 v3.0.0-20200313102051-9f266ea9e77c
+gopkg.in/yaml.v3

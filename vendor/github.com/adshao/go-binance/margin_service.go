@@ -3,6 +3,7 @@ package binance
 import (
 	"context"
 	"encoding/json"
+	"strings"
 )
 
 // MarginTransferService transfer between spot account and margin account
@@ -199,6 +200,7 @@ func (s *ListMarginLoansService) Do(ctx context.Context, opts ...RequestOption) 
 	r := &request{
 		method:   "GET",
 		endpoint: "/sapi/v1/margin/loan",
+		secType:  secTypeSigned,
 	}
 	r.setParam("asset", s.asset)
 	if s.txID != nil {
@@ -294,6 +296,7 @@ func (s *ListMarginRepaysService) Do(ctx context.Context, opts ...RequestOption)
 	r := &request{
 		method:   "GET",
 		endpoint: "/sapi/v1/margin/repay",
+		secType:  secTypeSigned,
 	}
 	r.setParam("asset", s.asset)
 	if s.txID != nil {
@@ -338,6 +341,82 @@ type MarginRepay struct {
 	Timestamp int64                 `json:"timestamp"`
 	Status    MarginRepayStatusType `json:"status"`
 	TxID      int64                 `json:"txId"`
+}
+
+// GetIsolatedMarginAccountService gets isolated margin account info
+type GetIsolatedMarginAccountService struct {
+	c *Client
+
+	symbols []string
+}
+
+// Symbols set symbols to the isolated margin account
+func (s *GetIsolatedMarginAccountService) Symbols(symbols ...string) *GetIsolatedMarginAccountService {
+	s.symbols = symbols
+	return s
+}
+
+// Do send request
+func (s *GetIsolatedMarginAccountService) Do(ctx context.Context, opts ...RequestOption) (res *IsolatedMarginAccount, err error) {
+	r := &request{
+		method:   "GET",
+		endpoint: "/sapi/v1/margin/isolated/account",
+		secType:  secTypeSigned,
+	}
+
+	if len(s.symbols) > 0 {
+		r.setParam("symbols", strings.Join(s.symbols, ","))
+	}
+
+	data, err := s.c.callAPI(ctx, r, opts...)
+	if err != nil {
+		return nil, err
+	}
+	res = new(IsolatedMarginAccount)
+	err = json.Unmarshal(data, res)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+// IsolatedMarginAccount defines isolated user assets of margin account
+type IsolatedMarginAccount struct {
+	TotalAssetOfBTC     string                `json:"totalAssetOfBtc"`
+	TotalLiabilityOfBTC string                `json:"totalLiabilityOfBtc"`
+	TotalNetAssetOfBTC  string                `json:"totalNetAssetOfBtc"`
+	Assets              []IsolatedMarginAsset `json:"assets"`
+}
+
+// IsolatedMarginAsset defines isolated margin asset information, like margin level, liquidation price... etc
+type IsolatedMarginAsset struct {
+	Symbol     string            `json:"symbol"`
+	QuoteAsset IsolatedUserAsset `json:"quoteAsset"`
+	BaseAsset  IsolatedUserAsset `json:"baseAsset"`
+
+	IsolatedCreated   bool   `json:"isolatedCreated"`
+	MarginLevel       string `json:"marginLevel"`
+	MarginLevelStatus string `json:"marginLevelStatus"`
+	MarginRatio       string `json:"marginRatio"`
+	IndexPrice        string `json:"indexPrice"`
+	LiquidatePrice    string `json:"liquidatePrice"`
+	LiquidateRate     string `json:"liquidateRate"`
+	TradeEnabled      bool   `json:"tradeEnabled"`
+}
+
+// IsolatedUserAsset defines isolated user assets of the margin account
+type IsolatedUserAsset struct {
+	Asset    string `json:"asset"`
+	Borrowed string `json:"borrowed"`
+	Free     string `json:"free"`
+	Interest string `json:"interest"`
+	Locked   string `json:"locked"`
+	NetAsset string `json:"netAsset"`
+
+	BorrowEnabled bool   `json:"borrowEnabled"`
+	NetAssetInBtc string `json:"netAssetInBtc"`
+	RepayEnabled  bool   `json:"repayEnabled"`
+	TotalAsset    string `json:"totalAsset"`
 }
 
 // GetMarginAccountService get margin account info
@@ -471,6 +550,41 @@ type MarginPair struct {
 	IsSellAllowed bool   `json:"isSellAllowed"`
 }
 
+// GetMarginAllPairsService get margin pair info
+type GetMarginAllPairsService struct {
+	c *Client
+}
+
+// Do send request
+func (s *GetMarginAllPairsService) Do(ctx context.Context, opts ...RequestOption) (res []*MarginAllPair, err error) {
+	r := &request{
+		method:   "GET",
+		endpoint: "/sapi/v1/margin/allPairs",
+		secType:  secTypeAPIKey,
+	}
+	data, err := s.c.callAPI(ctx, r, opts...)
+	if err != nil {
+		return []*MarginAllPair{}, err
+	}
+	res = make([]*MarginAllPair, 0)
+	err = json.Unmarshal(data, &res)
+	if err != nil {
+		return []*MarginAllPair{}, err
+	}
+	return res, nil
+}
+
+// MarginAllPair define margin pair info
+type MarginAllPair struct {
+	ID            int64  `json:"id"`
+	Symbol        string `json:"symbol"`
+	Base          string `json:"base"`
+	Quote         string `json:"quote"`
+	IsMarginTrade bool   `json:"isMarginTrade"`
+	IsBuyAllowed  bool   `json:"isBuyAllowed"`
+	IsSellAllowed bool   `json:"isSellAllowed"`
+}
+
 // GetMarginPriceIndexService get margin price index
 type GetMarginPriceIndexService struct {
 	c      *Client
@@ -512,17 +626,24 @@ type MarginPriceIndex struct {
 
 // ListMarginTradesService list trades
 type ListMarginTradesService struct {
-	c         *Client
-	symbol    string
-	startTime *int64
-	endTime   *int64
-	limit     *int
-	fromID    *int64
+	c          *Client
+	symbol     string
+	isIsolated *IsIsolatedType
+	startTime  *int64
+	endTime    *int64
+	limit      *int
+	fromID     *int64
 }
 
 // Symbol set symbol
 func (s *ListMarginTradesService) Symbol(symbol string) *ListMarginTradesService {
 	s.symbol = symbol
+	return s
+}
+
+// IsIsolated set isIsolated
+func (s *ListMarginTradesService) IsIsolated(isIsolated IsIsolatedType) *ListMarginTradesService {
+	s.isIsolated = &isIsolated
 	return s
 }
 
@@ -558,6 +679,9 @@ func (s *ListMarginTradesService) Do(ctx context.Context, opts ...RequestOption)
 		secType:  secTypeSigned,
 	}
 	r.setParam("symbol", s.symbol)
+	if s.isIsolated != nil {
+		r.setParam("isIsolated", *s.isIsolated)
+	}
 	if s.limit != nil {
 		r.setParam("limit", *s.limit)
 	}
@@ -617,4 +741,218 @@ func (s *GetMaxBorrowableService) Do(ctx context.Context, opts ...RequestOption)
 // MaxBorrowable define max borrowable response
 type MaxBorrowable struct {
 	Amount string `json:"amount"`
+}
+
+// GetMaxTransferableService get max transferable of asset
+type GetMaxTransferableService struct {
+	c     *Client
+	asset string
+}
+
+// Asset set asset
+func (s *GetMaxTransferableService) Asset(asset string) *GetMaxTransferableService {
+	s.asset = asset
+	return s
+}
+
+// Do send request
+func (s *GetMaxTransferableService) Do(ctx context.Context, opts ...RequestOption) (res *MaxTransferable, err error) {
+	r := &request{
+		method:   "GET",
+		endpoint: "/sapi/v1/margin/maxTransferable",
+		secType:  secTypeSigned,
+	}
+	r.setParam("asset", s.asset)
+	data, err := s.c.callAPI(ctx, r, opts...)
+	if err != nil {
+		return nil, err
+	}
+	res = new(MaxTransferable)
+	err = json.Unmarshal(data, &res)
+	if err != nil {
+		return nil, err
+	}
+	return res, nil
+}
+
+// MaxTransferable define max transferable response
+type MaxTransferable struct {
+	Amount string `json:"amount"`
+}
+
+// StartIsolatedMarginUserStreamService create listen key for margin user stream service
+type StartIsolatedMarginUserStreamService struct {
+	c      *Client
+	symbol string
+}
+
+// Symbol sets the user stream to isolated margin user stream
+func (s *StartIsolatedMarginUserStreamService) Symbol(symbol string) *StartIsolatedMarginUserStreamService {
+	s.symbol = symbol
+	return s
+}
+
+// Do send request
+func (s *StartIsolatedMarginUserStreamService) Do(ctx context.Context, opts ...RequestOption) (listenKey string, err error) {
+	r := &request{
+		method:   "POST",
+		endpoint: "/sapi/v1/userDataStream/isolated",
+		secType:  secTypeAPIKey,
+	}
+
+	r.setFormParam("symbol", s.symbol)
+
+	data, err := s.c.callAPI(ctx, r, opts...)
+	if err != nil {
+		return "", err
+	}
+	j, err := newJSON(data)
+	if err != nil {
+		return "", err
+	}
+	listenKey = j.Get("listenKey").MustString()
+	return listenKey, nil
+}
+
+// KeepaliveIsolatedMarginUserStreamService updates listen key for isolated margin user data stream
+type KeepaliveIsolatedMarginUserStreamService struct {
+	c         *Client
+	listenKey string
+	symbol    string
+}
+
+// Symbol set symbol to the isolated margin keepalive request
+func (s *KeepaliveIsolatedMarginUserStreamService) Symbol(symbol string) *KeepaliveIsolatedMarginUserStreamService {
+	s.symbol = symbol
+	return s
+}
+
+// ListenKey set listen key
+func (s *KeepaliveIsolatedMarginUserStreamService) ListenKey(listenKey string) *KeepaliveIsolatedMarginUserStreamService {
+	s.listenKey = listenKey
+	return s
+}
+
+// Do send request
+func (s *KeepaliveIsolatedMarginUserStreamService) Do(ctx context.Context, opts ...RequestOption) (err error) {
+	r := &request{
+		method:   "PUT",
+		endpoint: "/sapi/v1/userDataStream/isolated",
+		secType:  secTypeAPIKey,
+	}
+	r.setFormParam("listenKey", s.listenKey)
+	r.setFormParam("symbol", s.symbol)
+
+	_, err = s.c.callAPI(ctx, r, opts...)
+	return err
+}
+
+// CloseIsolatedMarginUserStreamService delete listen key
+type CloseIsolatedMarginUserStreamService struct {
+	c         *Client
+	listenKey string
+
+	symbol string
+}
+
+// ListenKey set listen key
+func (s *CloseIsolatedMarginUserStreamService) ListenKey(listenKey string) *CloseIsolatedMarginUserStreamService {
+	s.listenKey = listenKey
+	return s
+}
+
+// Symbol set symbol to the isolated margin user stream close request
+func (s *CloseIsolatedMarginUserStreamService) Symbol(symbol string) *CloseIsolatedMarginUserStreamService {
+	s.symbol = symbol
+	return s
+}
+
+// Do send request
+func (s *CloseIsolatedMarginUserStreamService) Do(ctx context.Context, opts ...RequestOption) (err error) {
+	r := &request{
+		method:   "DELETE",
+		endpoint: "/sapi/v1/userDataStream/isolated",
+		secType:  secTypeAPIKey,
+	}
+
+	r.setFormParam("listenKey", s.listenKey)
+	r.setFormParam("symbol", s.symbol)
+
+	_, err = s.c.callAPI(ctx, r, opts...)
+	return err
+}
+
+// StartMarginUserStreamService create listen key for margin user stream service
+type StartMarginUserStreamService struct {
+	c *Client
+}
+
+// Do send request
+func (s *StartMarginUserStreamService) Do(ctx context.Context, opts ...RequestOption) (listenKey string, err error) {
+	r := &request{
+		method:   "POST",
+		endpoint: "/sapi/v1/userDataStream",
+		secType:  secTypeAPIKey,
+	}
+
+	data, err := s.c.callAPI(ctx, r, opts...)
+	if err != nil {
+		return "", err
+	}
+	j, err := newJSON(data)
+	if err != nil {
+		return "", err
+	}
+	listenKey = j.Get("listenKey").MustString()
+	return listenKey, nil
+}
+
+// KeepaliveMarginUserStreamService update listen key
+type KeepaliveMarginUserStreamService struct {
+	c         *Client
+	listenKey string
+}
+
+// ListenKey set listen key
+func (s *KeepaliveMarginUserStreamService) ListenKey(listenKey string) *KeepaliveMarginUserStreamService {
+	s.listenKey = listenKey
+	return s
+}
+
+// Do send request
+func (s *KeepaliveMarginUserStreamService) Do(ctx context.Context, opts ...RequestOption) (err error) {
+	r := &request{
+		method:   "PUT",
+		endpoint: "/sapi/v1/userDataStream",
+		secType:  secTypeAPIKey,
+	}
+	r.setFormParam("listenKey", s.listenKey)
+	_, err = s.c.callAPI(ctx, r, opts...)
+	return err
+}
+
+// CloseMarginUserStreamService delete listen key
+type CloseMarginUserStreamService struct {
+	c         *Client
+	listenKey string
+}
+
+// ListenKey set listen key
+func (s *CloseMarginUserStreamService) ListenKey(listenKey string) *CloseMarginUserStreamService {
+	s.listenKey = listenKey
+	return s
+}
+
+// Do send request
+func (s *CloseMarginUserStreamService) Do(ctx context.Context, opts ...RequestOption) (err error) {
+	r := &request{
+		method:   "DELETE",
+		endpoint: "/sapi/v1/userDataStream",
+		secType:  secTypeAPIKey,
+	}
+
+	r.setFormParam("listenKey", s.listenKey)
+
+	_, err = s.c.callAPI(ctx, r, opts...)
+	return err
 }

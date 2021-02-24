@@ -3,6 +3,8 @@ package binance
 import (
 	"context"
 	"encoding/json"
+
+	"github.com/adshao/go-binance/common"
 )
 
 // ListBookTickersService list best price/qty on the order book for a symbol or symbols
@@ -27,7 +29,7 @@ func (s *ListBookTickersService) Do(ctx context.Context, opts ...RequestOption) 
 		r.setParam("symbol", *s.symbol)
 	}
 	data, err := s.c.callAPI(ctx, r, opts...)
-	data = toJSONList(data)
+	data = common.ToJSONList(data)
 	if err != nil {
 		return []*BookTicker{}, err
 	}
@@ -73,7 +75,7 @@ func (s *ListPricesService) Do(ctx context.Context, opts ...RequestOption) (res 
 	if err != nil {
 		return []*SymbolPrice{}, err
 	}
-	data = toJSONList(data)
+	data = common.ToJSONList(data)
 	res = make([]*SymbolPrice, 0)
 	err = json.Unmarshal(data, &res)
 	if err != nil {
@@ -104,7 +106,7 @@ func (s *ListPriceChangeStatsService) Symbol(symbol string) *ListPriceChangeStat
 func (s *ListPriceChangeStatsService) Do(ctx context.Context, opts ...RequestOption) (res []*PriceChangeStats, err error) {
 	r := &request{
 		method:   "GET",
-		endpoint: "/api/v1/ticker/24hr",
+		endpoint: "/api/v3/ticker/24hr",
 	}
 	if s.symbol != nil {
 		r.setParam("symbol", *s.symbol)
@@ -113,7 +115,7 @@ func (s *ListPriceChangeStatsService) Do(ctx context.Context, opts ...RequestOpt
 	if err != nil {
 		return res, err
 	}
-	data = toJSONList(data)
+	data = common.ToJSONList(data)
 	res = make([]*PriceChangeStats, 0)
 	err = json.Unmarshal(data, &res)
 	if err != nil {
@@ -130,6 +132,7 @@ type PriceChangeStats struct {
 	WeightedAvgPrice   string `json:"weightedAvgPrice"`
 	PrevClosePrice     string `json:"prevClosePrice"`
 	LastPrice          string `json:"lastPrice"`
+	LastQty            string `json:"lastQty"`
 	BidPrice           string `json:"bidPrice"`
 	AskPrice           string `json:"askPrice"`
 	OpenPrice          string `json:"openPrice"`

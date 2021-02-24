@@ -4,7 +4,7 @@ import (
 	"log"
 	"strings"
 
-	"github.com/adshao/go-binance"
+	binance "github.com/adshao/go-binance/v2"
 	"github.com/juju/errors"
 	"github.com/shopspring/decimal"
 	"gopkg.in/urfave/cli.v1"

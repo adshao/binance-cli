@@ -9,6 +9,7 @@ import (
 
 var (
 	baseURL         = "wss://stream.binance.com:9443/ws"
+	baseFutureURL   = "wss://fstream.binance.com/ws"
 	combinedBaseURL = "wss://stream.binance.com:9443/stream?streams="
 	// WebsocketTimeout is an interval for sending ping/pong messages if WebsocketKeepalive is enabled
 	WebsocketTimeout = time.Second * 60
@@ -27,9 +28,20 @@ type WsPartialDepthEvent struct {
 // WsPartialDepthHandler handle websocket partial depth event
 type WsPartialDepthHandler func(event *WsPartialDepthEvent)
 
-// WsPartialDepthServe serve websocket partial depth handler with a symbol
+// WsPartialDepthServe serve websocket partial depth handler with a symbol, using 1sec updates
 func WsPartialDepthServe(symbol string, levels string, handler WsPartialDepthHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
 	endpoint := fmt.Sprintf("%s/%s@depth%s", baseURL, strings.ToLower(symbol), levels)
+	return wsPartialDepthServe(endpoint, symbol, handler, errHandler)
+}
+
+// WsPartialDepthServe100Ms serve websocket partial depth handler with a symbol, using 100msec updates
+func WsPartialDepthServe100Ms(symbol string, levels string, handler WsPartialDepthHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
+	endpoint := fmt.Sprintf("%s/%s@depth%s@100ms", baseURL, strings.ToLower(symbol), levels)
+	return wsPartialDepthServe(endpoint, symbol, handler, errHandler)
+}
+
+// wsPartialDepthServe serve websocket partial depth handler with an arbitrary endpoint address
+func wsPartialDepthServe(endpoint string, symbol string, handler WsPartialDepthHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
 	cfg := newWsConfig(endpoint)
 	wsHandler := func(message []byte) {
 		j, err := newJSON(message)
@@ -63,7 +75,7 @@ func WsPartialDepthServe(symbol string, levels string, handler WsPartialDepthHan
 	return wsServe(cfg, wsHandler, errHandler)
 }
 
-// WsCombinedPartialDepthServe is similar to WsPartialDepthServe, but it for multiple symbols
+// WsCombinedPartialDepthServe is similar to WsPartialDepthServe, but for multiple symbols and 1sec updates only
 func WsCombinedPartialDepthServe(symbolLevels map[string]string, handler WsPartialDepthHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
 	endpoint := combinedBaseURL
 	for s, l := range symbolLevels {
@@ -110,9 +122,20 @@ func WsCombinedPartialDepthServe(symbolLevels map[string]string, handler WsParti
 // WsDepthHandler handle websocket depth event
 type WsDepthHandler func(event *WsDepthEvent)
 
-// WsDepthServe serve websocket depth handler with a symbol
+// WsDepthServe serve websocket depth handler with a symbol, using 1sec updates
 func WsDepthServe(symbol string, handler WsDepthHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
 	endpoint := fmt.Sprintf("%s/%s@depth", baseURL, strings.ToLower(symbol))
+	return wsDepthServe(endpoint, handler, errHandler)
+}
+
+// WsDepthServe100Ms serve websocket depth handler with a symbol, using 100msec updates
+func WsDepthServe100Ms(symbol string, handler WsDepthHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
+	endpoint := fmt.Sprintf("%s/%s@depth@100ms", baseURL, strings.ToLower(symbol))
+	return wsDepthServe(endpoint, handler, errHandler)
+}
+
+// WsDepthServe serve websocket depth handler with an arbitrary endpoint address
+func wsDepthServe(endpoint string, handler WsDepthHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
 	cfg := newWsConfig(endpoint)
 	wsHandler := func(message []byte) {
 		j, err := newJSON(message)
@@ -282,6 +305,16 @@ func WsUserDataServe(listenKey string, handler WsHandler, errHandler ErrHandler)
 	return wsServe(cfg, handler, errHandler)
 }
 
+// WsFutureUserDataServe serve user data handler with listen key
+func WsFutureUserDataServe(listenKey string, handler WsHandler, errHandler ErrHandler, wsConfig ...*WsConfig) (doneC, stopC chan struct{}, err error) {
+	if len(wsConfig) > 0 {
+		baseFutureURL = wsConfig[0].Endpoint
+	}
+	endpoint := fmt.Sprintf("%s/%s", baseFutureURL, listenKey)
+	cfg := newWsConfig(endpoint)
+	return wsServe(cfg, handler, errHandler)
+}
+
 // WsMarketStatHandler handle websocket that push single market statistics for 24hr
 type WsMarketStatHandler func(event *WsMarketStatEvent)
 
@@ -383,4 +416,33 @@ type WsMiniMarketsStatEvent struct {
 	LowPrice    string `json:"l"`
 	BaseVolume  string `json:"v"`
 	QuoteVolume string `json:"q"`
+}
+
+// WsBookTickerServeHandler handle websocket that push any update to the best bid or ask's price or quantity in real-time for a specified symbol
+type WsBookTickerServeHandler func(event *WsBookTickerEvent)
+
+// WsBookTickerServe serve websocket that push any update to the best bid or ask's price or quantity in real-time for a specified symbol
+func WsBookTickerServe(symbol string, handler WsBookTickerServeHandler, errHandler ErrHandler) (doneC, stopC chan struct{}, err error) {
+	endpoint := fmt.Sprintf("%s/%s@bookTicker", baseURL, strings.ToLower(symbol))
+	cfg := newWsConfig(endpoint)
+	wsHandler := func(message []byte) {
+		event := new(WsBookTickerEvent)
+		err := json.Unmarshal(message, &event)
+		if err != nil {
+			errHandler(err)
+			return
+		}
+		handler(event)
+	}
+	return wsServe(cfg, wsHandler, errHandler)
+}
+
+// WsBookTickerEvent define websocket book-ticker event
+type WsBookTickerEvent struct {
+	UpdateID     int64  `json:"u"`
+	Symbol       string `json:"s"`
+	BestBidPrice string `json:"b"`
+	BestBidQty   string `json:"B"`
+	BestAskPrice string `json:"a"`
+	BestAskQty   string `json:"A"`
 }

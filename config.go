@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"io/ioutil"
 
-	"github.com/adshao/go-binance"
+	binance "github.com/adshao/go-binance/v2"
 	"github.com/juju/errors"
 	"gopkg.in/urfave/cli.v1"
 )
